@@ -18,6 +18,7 @@ Final Version of Inverse Heat Conduction Problem by using The Conjugate Gradient
 import re
 import os
 import time
+from pathlib import Path
 from math import sin, radians
 
 import numpy as np
@@ -29,8 +30,10 @@ from scipy.io import loadmat
 from scipy.sparse.linalg import LinearOperator,cg
 from scipy.sparse import diags
 
+BASE_DIR = Path(__file__).resolve().parent
+
 # === Reading and Poly-Fitting Thermal Properties for SUS304 === #
-Thermal_properties_file_path = "metal_thermal_properties.csv"
+Thermal_properties_file_path = BASE_DIR / "metal_thermal_properties.csv"
 # Thermal_properties_file_path = "D:/HT_Calculation_Python\\thermal_properties_SUS304\\metal_thermal_properties.csv"
 # Thermal_properties_file_path = "C:/HT_Calculation_Python\\thermal_properties_SUS304\\metal_thermal_properties.csv"
 sus304_data = pd.read_csv(Thermal_properties_file_path)
@@ -436,8 +439,8 @@ def global_CGM_time(T_init, Y_obs, q_init, dx, dy, dz, dz_b, dz_t, dt,
     grad_last = np.zeros_like(q)                    # grad_J_q_last shape(nt-1, ni, nj) heat flux change gradient for upper surface at the last iteration
     
     bottom_idx, top_idx = 0, -1
-    # eps = 1e-12
-    eps = 0
+    # eps safeguards divisions; adjust if the solver stalls
+    eps = 1e-12
     dire_reset_every = 5
     
     p_n_last = np.zeros_like(q)
@@ -650,56 +653,30 @@ def sliding_window_CGM_q_saving(
 
 === 
 '''       
-start_All = time.time()
+def main():
+    start_All = time.time()
 
-T_measure_K = np.load(r"T_measure_700um_1ms.npy")
-# T_measure_K = np.load(r"D:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
-# T_measure_K = np.load(r"C:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
-dt = 0.001
-       
-# Extract the temperature distribution of the down side surface and dupilcate the data as the initial temperature distribution
-T_measure_init_K = T_measure_K[0, :, :]
-T0 = np.repeat(T_measure_init_K[:, :, np.newaxis], nz, axis = 2).astype(np.float64)  # shape: (ny, nx, nz) 
-# select the inverse heat transfer problem calculation domain
-Y_obs = T_measure_K[:500, :, :]
-nt, ni, nj = Y_obs.shape
-nk = T0.shape[2]
-# initial surface heat flux guess
-q_init = np.zeros((nt - 1, ni, nj))
+    T_measure_K = np.load(BASE_DIR / "T_measure_700um_1ms.npy")
+    # T_measure_K = np.load(r"D:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
+    # T_measure_K = np.load(r"C:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
+    dt = 0.001
 
-q, T_cal, J_hist = global_CGM_time(T0, Y_obs, q_init, dx, dy, dz, dz_b, dz_t, dt, rho, cp_coeffs, k_coeffs)
+    T_measure_init_K = T_measure_K[0, :, :]
+    T0 = np.repeat(T_measure_init_K[:, :, np.newaxis], nz, axis=2).astype(np.float64)  # shape: (ny, nx, nz)
 
-# np.save("q_0s_400_frame.npy", q)
-# np.save("J_hist_0s_50_frame.npy", J_hist)
-# %%
-'''
-# === Main Execution  for all calculation domain === #
-=== 
-''' 
+    Y_obs = T_measure_K[:500, :, :]
+    nt, ni, nj = Y_obs.shape
+    nk = T0.shape[2]
+    q_init = np.zeros((nt - 1, ni, nj))
 
-# # T_measure_K = np.load(r"D:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
-# T_measure_K = np.load(r"C:/HT_Calculation_Python/IR_Temperature_data/T_measure_700um_1ms.npy")
+    global_CGM_time(
+        T0, Y_obs, q_init, dx, dy, dz, dz_b, dz_t, dt, rho, cp_coeffs, k_coeffs
+    )
 
-# dt = 0.001
-       
-# '''提取下表面的初始温度，创建全局初始温度''' 
-
-# T_measure_init_K = T_measure_K[0, :, :]
-# T0 = np.repeat(T_measure_init_K[:, :, np.newaxis], nz, axis = 2).astype(np.float64)  # shape: (ny, nx, nz) 
-
-# Y_obs = T_measure_K[:5000, : , : ]
-
-# q_all = sliding_window_CGM_q_saving(Y_obs, T0, dx, dy, dz, dz_b, dz_t, dt, rho, cp_coeffs, k_coeffs,
-#                                  window_size = 400, overlap = 20, q_init_value = 0,
-#                                  filename = "q_1000fps_0s_5s.npy", CGM_iteration = 20000
-#                                 )
-end_All = time.time()
-
-print(f"Time for the whole calculation process:{end_All - start_All}")
-# %%
+    end_All = time.time()
+    print(f"Time for the whole calculation process:{end_All - start_All}")
 
 '''绘制下表面温度对照图检查是否正确'''
 
-
-
-
+if __name__ == "__main__":
+    main()
