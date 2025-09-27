@@ -4,8 +4,3 @@ authors = ["IHCP Contributors"]
 version = "0.1.0"
 
 [deps]
-IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-NPZ = "15e1cf62-17a7-5c38-86c2-8b9d578c0f2c"
-PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-SparseArrays = "2f01184e-e22a-5df5-ae63-d93eb507fd24"
