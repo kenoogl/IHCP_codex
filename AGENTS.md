@@ -20,3 +20,22 @@ Write commits in imperative mood (“Add CGM plateau check”) and keep them foc
 
 ## Environment & Data Handling
 Resolve file paths relative to `Path(__file__).parent` to support tests and imports. Store large camera exports outside Git; commit only derived samples or metadata, and document access instructions in `org/data/README.md` when applicable.
+
+## Julia Migration Playbook
+1. **Repository Layout for Julia**  
+   Create `julia/Project.toml` with dependencies (`LinearAlgebra`, `SparseArrays`, `NPZ`, `IterativeSolvers`, optionally `PyCall`). Split Julia code into modules: `IHCP.jl` (entry), `poly_utils.jl`, `grid_setup.jl`, `dhcp.jl`, `adjoint.jl`, `cgm.jl`. Use `include` + `module` to keep namespaces tidy.
+
+2. **Conversion Order & Granularity**  
+   Migrate in dependency order: (a) scalar helpers (`polyval`), (b) thermal-property calculators, (c) grid/coeff builders, (d) DHCP solver, (e) adjoint solver, (f) CGM + line search, (g) sliding window & I/O. Avoid introducing parallelism during migration; stick with single-threaded loops for reproducibility.
+
+3. **Reference Dataset & Sanity Harness**  
+   Prepare a shrinked dataset (`5` timesteps × `20×20` pixels) in both NumPy (`.npz`) and Julia (`NPZ.jl`) readable forms. For each converted function, run side-by-side checks: `max(abs(diff))`, `mean(abs(diff))`, array min/max. Store Python reference outputs under `artifacts/python_baseline/` for traceability.
+
+4. **Bridging During Transition**  
+   While only part of the pipeline is native Julia, call remaining Python routines via `PyCall.jl` or reuse saved intermediate arrays. Provide Julia wrappers that forward to Python until the equivalent Julia function passes equality checks. Document the mix-and-match status in `docs/conversion_log.md`.
+
+5. **Verification Workflow**  
+   Tag each migration step with a Julia test script (`julia/test/test_stepN.jl`) comparing against Python references. Require tests to pass before moving to the next function. Capture numerical tolerances (e.g., `1e-10` for double precision) and log deviations.
+
+6. **Post-conversion Tasks**  
+   After all functions are native Julia, refactor for idiomatic style (broadcasting, `mul!`, `StaticArrays` where appropriate), reintroduce parallelism (`Threads.@threads`, `LoopVectorization`) only after verifying baseline parity. Update documentation and CI to run both Python and Julia tests.
